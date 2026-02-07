@@ -4,6 +4,9 @@ export const runtime = "edge";
 import dynamic from 'next/dynamic';
 import { useState, useRef, useEffect } from 'react';
 import { useCheckInStore } from '@/store/checkInStore';
+import { useAuthStore } from '@/store/authStore';
+import AuthModal from '@/components/Auth/AuthModal';
+import UserMenu from '@/components/Auth/UserMenu';
 
 const MapView = dynamic(() => import('@/components/Map/MapView'), {
   ssr: false,
@@ -17,12 +20,15 @@ export default function Home() {
   const [searching, setSearching] = useState(false);
   const [lastAddedCoords, setLastAddedCoords] = useState<[number, number] | null>(null);
   const [activeSelection, setActiveSelection] = useState<any | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const { addCafe, userName, setUserName, isCheckedIn, currentCafeId, intent, cafes, checkIn, checkOut } = useCheckInStore();
+  const { user, isAuthenticated, checkAuth } = useAuthStore();
 
   useEffect(() => {
     setHydrated(true);
-  }, []);
+    checkAuth();
+  }, [checkAuth]);
 
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const abortController = useRef<AbortController | null>(null);
@@ -164,6 +170,17 @@ export default function Home() {
             BANGALORE
           </div>
           <span>{totalNodes} NODES_ACTIVE</span>
+          {isAuthenticated ? (
+            <UserMenu />
+          ) : (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="btn-minimal"
+              style={{ height: '32px', padding: '0 12px', fontSize: '11px' }}
+            >
+              Sign In
+            </button>
+          )}
         </div>
       </header>
 
@@ -183,21 +200,33 @@ export default function Home() {
               <div className="panel" style={{ padding: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' }}>
                 <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 700, marginBottom: '4px' }}>SELECTED LOCATION</div>
                 <h2 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px' }}>{activeSelection.name}</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => {
-                    checkIn(activeSelection.id, 'body-double');
-                    setActiveSelection(null);
-                  }} className="btn-minimal" style={{ width: '100%', height: '36px' }}>
-                    Broadcast: Body Doubling
-                  </button>
-                  <button onClick={() => {
-                    checkIn(activeSelection.id, 'focus');
-                    setActiveSelection(null);
-                  }} className="btn-border" style={{ width: '100%', height: '36px' }}>
-                    Broadcast: Focus Mode
-                  </button>
-                  <button onClick={() => setActiveSelection(null)} style={{ border: 'none', background: 'none', color: 'var(--text-tertiary)', fontSize: '11px', marginTop: '4px', cursor: 'pointer' }}>Cancel</button>
-                </div>
+                {isAuthenticated ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button onClick={() => {
+                      checkIn(activeSelection.id, 'body-double');
+                      setActiveSelection(null);
+                    }} className="btn-minimal" style={{ width: '100%', height: '36px' }}>
+                      Broadcast: Body Doubling
+                    </button>
+                    <button onClick={() => {
+                      checkIn(activeSelection.id, 'focus');
+                      setActiveSelection(null);
+                    }} className="btn-border" style={{ width: '100%', height: '36px' }}>
+                      Broadcast: Focus Mode
+                    </button>
+                    <button onClick={() => setActiveSelection(null)} style={{ border: 'none', background: 'none', color: 'var(--text-tertiary)', fontSize: '11px', marginTop: '4px', cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '12px', textAlign: 'center' }}>
+                      Sign in to broadcast your presence at this location
+                    </p>
+                    <button onClick={() => setShowAuthModal(true)} className="btn-minimal" style={{ width: '100%', height: '36px' }}>
+                      Sign In to Broadcast
+                    </button>
+                    <button onClick={() => setActiveSelection(null)} style={{ border: 'none', background: 'none', color: 'var(--text-tertiary)', fontSize: '11px', marginTop: '4px', cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -262,17 +291,26 @@ export default function Home() {
         }}>
           <div>
             <h3 style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Local Node Identity</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 600 }}>BROADCAST_NAME</label>
-              <input
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                className="input-minimal"
-                placeholder="Set nickname..."
-                style={{ width: '100%' }}
-              />
-            </div>
+            {isAuthenticated ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>AUTHENTICATED_AS</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{user?.name}</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>{user?.email}</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>
+                  Sign in to broadcast your presence and connect with other coworkers.
+                </p>
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="btn-minimal"
+                  style={{ width: '100%', height: '36px' }}
+                >
+                  Sign In / Create Account
+                </button>
+              </div>
+            )}
           </div>
 
           <div>
@@ -280,7 +318,7 @@ export default function Home() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {isCheckedIn ? (
                 <DataRow
-                  user={`${userName}.node`}
+                  user={`${user?.name || userName}.node`}
                   action={intent?.toUpperCase()}
                   loc={currentCafe?.name.toUpperCase().substring(0, 8)}
                   highlight
@@ -300,6 +338,8 @@ export default function Home() {
           </div>
         </aside>
       </div>
+      
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </main>
   );
 }

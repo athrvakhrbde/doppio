@@ -1,0 +1,25 @@
+name = "doppio"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "doppio-prod"
+
+[env.staging]
+name = "doppio-staging"
+
+# KV namespace for user data
+[[kv_namespaces]]
+binding = "USERS_KV"
+id = "users_kv_namespace_id"
+preview_id = "users_kv_preview_id"
+
+# KV namespace for cafe data
+[[kv_namespaces]]
+binding = "CAFES_KV"
+id = "cafes_kv_namespace_id"
+preview_id = "cafes_kv_preview_id"
+
+# Environment variables
+[vars]
+NODE_ENV = "production"
